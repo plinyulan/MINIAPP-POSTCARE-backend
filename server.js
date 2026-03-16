@@ -11,6 +11,16 @@ app.get("/", (req, res) => {
   res.send("Backend is running");
 });
 
+app.get("/test-db", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json({ success: true, data: result.rows[0] });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 app.get("/appointments", async (req, res) => {
   try {
     const result = await pool.query("SELECT * FROM appointments ORDER BY id DESC");
