@@ -11,19 +11,30 @@ app.get("/", (req, res) => {
   res.send("Backend is running");
 });
 
-app.get("/test-db", async (req, res) => {
+app.get("/appointments", async (req, res) => {
   try {
-    const result = await pool.query("SELECT NOW()");
-    res.json({ success: true, data: result.rows[0] });
+    const result = await pool.query("SELECT * FROM appointments ORDER BY id DESC");
+    res.json(result.rows);
   } catch (err) {
-    console.error("DB ERROR:", err);
-    res.status(500).json({
-      message: err.message,
-      code: err.code,
-      errno: err.errno,
-      syscall: err.syscall,
-      address: err.address
-    });
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post("/appointments", async (req, res) => {
+  try {
+    const { patient_name, service_name, appointment_date, time_slot } = req.body;
+
+    const result = await pool.query(
+      `INSERT INTO appointments
+       (patient_name, service_name, appointment_date, time_slot)
+       VALUES ($1, $2, $3, $4)
+       RETURNING *`,
+      [patient_name, service_name, appointment_date, time_slot]
+    );
+
+    res.status(201).json(result.rows[0]);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
   }
 });
 
