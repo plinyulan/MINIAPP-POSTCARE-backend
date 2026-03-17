@@ -48,6 +48,32 @@ app.post("/appointments", async (req, res) => {
   }
 });
 
+app.post("/login", async (req, res) => {
+  try {
+    const { username, password } = req.body;
+
+    const user = await pool.query(
+      "SELECT * FROM patients WHERE hn = $1 AND password = $2",
+      [username, password]
+    );
+
+    if (user.rows.length === 0) {
+      return res.status(401).json({
+        message: "Invalid login"
+      });
+    }
+
+    res.json({
+      message: "login success",
+      user: user.rows[0]
+    });
+  } catch (err) {
+    console.error("login error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
