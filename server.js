@@ -49,6 +49,7 @@ app.post("/appointments", async (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
+    res.send("Login endpoint is working");
   try {
     const { username, password } = req.body;
 
