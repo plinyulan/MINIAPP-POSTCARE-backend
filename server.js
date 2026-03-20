@@ -23,7 +23,12 @@ app.get("/test-db", async (req, res) => {
 
 app.get("/appointments", async (req, res) => {
   try {
-    const result = await pool.query("SELECT * FROM appointments ORDER BY id DESC");
+    const result = await pool.query(`
+      SELECT *
+      FROM appointments
+      ORDER BY appointment_date ASC, time_slot ASC
+    `);
+
     res.json(result.rows);
   } catch (err) {
     res.status(500).json({ error: err.message });
