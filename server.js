@@ -49,29 +49,16 @@ app.post("/appointments", async (req, res) => {
 });
 
 app.post("/login", async (req, res) => {
+    res.send("Login endpoint is working");
   try {
-    let { username, password } = req.body;
+    const { username, password } = req.body;
 
-    // กัน null / undefined
-    if (!username || !password) {
-      return res.status(400).json({
-        message: "username and password are required"
-      });
-    }
+    const rawUsername = String(username).trim();
+    const formattedHN = rawUsername.startsWith("HN") ? rawUsername : `HN${rawUsername}`;
 
-    // trim กัน space
-    username = String(username).trim();
-
-    // สร้าง 2 รูปแบบ
-    const rawUsername = username;
-    const hnUsername = username.startsWith("HN")
-      ? username
-      : `HN${username}`;
-
-    // query รองรับทั้ง 2 แบบ
     const user = await pool.query(
       "SELECT * FROM patients WHERE (hn = $1 OR hn = $2) AND password = $3",
-      [rawUsername, hnUsername, password]
+      [rawUsername, formattedHN, password]
     );
 
     if (user.rows.length === 0) {
@@ -84,13 +71,9 @@ app.post("/login", async (req, res) => {
       message: "login success",
       user: user.rows[0]
     });
-
   } catch (err) {
     console.error("login error:", err);
-    res.status(500).json({
-      message: "server error",
-      error: err.message
-    });
+    res.status(500).json({ error: err.message });
   }
 });
 
