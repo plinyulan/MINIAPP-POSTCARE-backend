@@ -52,9 +52,12 @@ app.post("/login", async (req, res) => {
   try {
     const { username, password } = req.body;
 
+    const rawUsername = String(username).trim();
+    const formattedHN = rawUsername.startsWith("HN") ? rawUsername : `HN${rawUsername}`;
+
     const user = await pool.query(
-      "SELECT * FROM patients WHERE hn = $1 AND password = $2",
-      [username, password]
+      "SELECT * FROM patients WHERE (hn = $1 OR hn = $2) AND password = $3",
+      [rawUsername, formattedHN, password]
     );
 
     if (user.rows.length === 0) {
@@ -72,7 +75,6 @@ app.post("/login", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
 
 
 const PORT = process.env.PORT || 8080;
