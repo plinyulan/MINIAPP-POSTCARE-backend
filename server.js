@@ -7,10 +7,12 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Test endpoint
 app.get("/", (req, res) => {
   res.send("Backend is running");
 });
 
+// Test database connection
 app.get("/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -21,6 +23,7 @@ app.get("/test-db", async (req, res) => {
   }
 });
 
+// Add endpoints for appointments
 app.get("/appointments", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -52,7 +55,7 @@ app.post("/appointments", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
-
+// Add login endpoint
 app.post("/login", async (req, res) => {
     res.send("Login endpoint is working");
   try {
@@ -81,6 +84,29 @@ app.post("/login", async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
+//add endpoints for services
+app.get("/api/services", async (req, res) => {
+  try {
+    const result = await pool.query(`
+      SELECT 
+        id,
+        service_id,
+        service_name,
+        department,
+        location,
+        status
+      FROM services
+      ORDER BY service_id ASC
+    `);
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("Error fetching services:", error);
+    res.status(500).json({ error: "Failed to fetch services" });
+    }
+});
+
 
 
 const PORT = process.env.PORT || 8080;
