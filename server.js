@@ -86,7 +86,7 @@ app.post("/login", async (req, res) => {
 });
 
 //add endpoints for services
-app.get("/api/services", async (req, res) => {
+app.get("/services", async (req, res) => {
   try {
     const result = await pool.query(`
       SELECT 
