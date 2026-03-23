@@ -34,6 +34,12 @@ function generateSubSlots(sessionStart, sessionEnd, durationMinutes) {
   return slots;
 }
 
+function getBangkokNow() {
+  return new Date(
+    new Date().toLocaleString("en-US", { timeZone: "Asia/Bangkok" })
+  );
+}
+
 // Test endpoint
 app.get("/", (req, res) => {
   res.send("Backend is running");
@@ -45,7 +51,7 @@ app.get("/test-db", async (req, res) => {
     const result = await pool.query("SELECT NOW()");
     res.json({ success: true, data: result.rows[0] });
   } catch (err) {
-    console.error(err);
+    console.error("test-db error:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -104,7 +110,7 @@ app.get("/services", async (req, res) => {
   }
 });
 
-// Old appointments list
+// Appointments list
 app.get("/appointments", async (req, res) => {
   try {
     const result = await pool.query(`
@@ -115,11 +121,12 @@ app.get("/appointments", async (req, res) => {
 
     res.json(result.rows);
   } catch (err) {
+    console.error("appointments list error:", err);
     res.status(500).json({ error: err.message });
   }
 });
 
-// Old create appointment endpoint (still kept for compatibility)
+// Old create appointment endpoint (kept for compatibility)
 app.post("/appointments", async (req, res) => {
   try {
     const { patient_name, service_name, appointment_date, time_slot } = req.body;
@@ -134,6 +141,7 @@ app.post("/appointments", async (req, res) => {
 
     res.status(201).json(result.rows[0]);
   } catch (err) {
+    console.error("old appointments create error:", err);
     res.status(500).json({ error: err.message });
   }
 });
@@ -199,6 +207,7 @@ app.get("/available-slots", async (req, res) => {
     );
 
     const bookings = bookingResult.rows;
+    const now = getBangkokNow();
 
     const result = sessions.map((session) => {
       const start = session.start_time.slice(0, 5);
@@ -213,6 +222,18 @@ app.get("/available-slots", async (req, res) => {
       }).length;
 
       const availableCount = capacity - reservedCount;
+      const sessionStartDateTime = new Date(`${date}T${start}:00`);
+
+      let status = "available";
+
+      // ถ้าถึงเวลาเริ่ม session แล้ว -> กดไม่ได้
+      if (now >= sessionStartDateTime) {
+        status = "expired";
+      } else if (availableCount <= 0) {
+        status = "reserved";
+      } else {
+        status = "available";
+      }
 
       return {
         room_id: Number(room_id),
@@ -224,14 +245,17 @@ app.get("/available-slots", async (req, res) => {
         capacity,
         reserved_count: reservedCount,
         available_count: availableCount,
-        status: availableCount > 0 ? "available" : "reserved",
+        status,
       };
     });
 
     res.json(result);
   } catch (error) {
     console.error("Error fetching available slots:", error);
-    res.status(500).json({ message: "Server error" });
+    res.status(500).json({
+      message: "Server error",
+      detail: error.message,
+    });
   }
 });
 
@@ -285,6 +309,16 @@ app.post("/appointments/book", async (req, res) => {
       });
     }
 
+    const sessionStartDateTime = new Date(`${appointment_date}T${session_start}:00`);
+    const now = getBangkokNow();
+
+    if (now >= sessionStartDateTime) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        message: "This time slot has already started or expired",
+      });
+    }
+
     const existingResult = await client.query(
       `
       SELECT slot_start::text, slot_end::text
@@ -325,36 +359,36 @@ app.post("/appointments/book", async (req, res) => {
     }
 
     const insertResult = await client.query(
-  `
-  INSERT INTO appointments
-  (
-    patient_id,
-    patient_name,
-    service_id,
-    service_name,
-    room_id,
-    appointment_date,
-    time_slot,
-    slot_start,
-    slot_end,
-    status
-  )
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
-  RETURNING *
-  `,
-  [
-    patient_id || null,
-    patient_name || null,
-    service_id,
-    service.service_name,
-    room_id,
-    appointment_date,
-    `${freeSlot.slot_start}-${freeSlot.slot_end}`,
-    freeSlot.slot_start,
-    freeSlot.slot_end,
-    "booked"
-  ]
-);
+      `
+      INSERT INTO appointments
+      (
+        patient_id,
+        patient_name,
+        service_id,
+        service_name,
+        room_id,
+        appointment_date,
+        time_slot,
+        slot_start,
+        slot_end,
+        status
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+      RETURNING *
+      `,
+      [
+        patient_id || null,
+        patient_name || null,
+        service_id,
+        service.service_name,
+        room_id,
+        appointment_date,
+        `${freeSlot.slot_start}-${freeSlot.slot_end}`,
+        freeSlot.slot_start,
+        freeSlot.slot_end,
+        "booked",
+      ]
+    );
 
     await client.query("COMMIT");
 
@@ -362,18 +396,19 @@ app.post("/appointments/book", async (req, res) => {
       message: "Booking successful",
       appointment: insertResult.rows[0],
     });
- }  catch (error) {
+  } catch (error) {
     await client.query("ROLLBACK");
     console.error("Booking error full:", error);
     console.error("Booking error message:", error.message);
     console.error("Booking error stack:", error.stack);
+
     res.status(500).json({
-    message: "Server error",
-    detail: error.message
-  });
-} finally {
-  client.release();
-}
+      message: "Server error",
+      detail: error.message,
+    });
+  } finally {
+    client.release();
+  }
 });
 
 const PORT = process.env.PORT || 8080;
