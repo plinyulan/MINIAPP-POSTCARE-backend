@@ -325,36 +325,36 @@ app.post("/appointments/book", async (req, res) => {
     }
 
     const insertResult = await client.query(
-      `
-      INSERT INTO appointments
-      (
-        patient_id,
-        patient_name,
-        service_id,
-        service_name,
-        room_id,
-        appointment_date,
-        time_slot,
-        slot_start,
-        slot_end,
-        status
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, 'booked')
-      RETURNING *
-      `,
-      [
-        patient_id || null,
-        patient_name || null,
-        service_id,
-        service.service_name,
-        room_id,
-        appointment_date,
-        `${freeSlot.slot_start}-${freeSlot.slot_end}`,
-        freeSlot.slot_start,
-        freeSlot.slot_end,
-        "booked",
-      ]
-    );
+  `
+  INSERT INTO appointments
+  (
+    patient_id,
+    patient_name,
+    service_id,
+    service_name,
+    room_id,
+    appointment_date,
+    time_slot,
+    slot_start,
+    slot_end,
+    status
+  )
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+  RETURNING *
+  `,
+  [
+    patient_id || null,
+    patient_name || null,
+    service_id,
+    service.service_name,
+    room_id,
+    appointment_date,
+    `${freeSlot.slot_start}-${freeSlot.slot_end}`,
+    freeSlot.slot_start,
+    freeSlot.slot_end,
+    "booked"
+  ]
+);
 
     await client.query("COMMIT");
 
@@ -362,13 +362,18 @@ app.post("/appointments/book", async (req, res) => {
       message: "Booking successful",
       appointment: insertResult.rows[0],
     });
-  } catch (error) {
+ }  catch (error) {
     await client.query("ROLLBACK");
-    console.error("Booking error:", error);
-    res.status(500).json({ message: "Server error" });
-  } finally {
-    client.release();
-  }
+    console.error("Booking error full:", error);
+    console.error("Booking error message:", error.message);
+    console.error("Booking error stack:", error.stack);
+    res.status(500).json({
+    message: "Server error",
+    detail: error.message
+  });
+} finally {
+  client.release();
+}
 });
 
 const PORT = process.env.PORT || 8080;
