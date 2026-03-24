@@ -411,6 +411,47 @@ app.post("/appointments/book", async (req, res) => {
   }
 });
 
+app.get("/appointments/book/:patientId", async (req, res) => {
+  const { patientId } = req.params;
+
+  try {
+    const result = await pool.query(
+      `
+      SELECT
+        a.id,
+        a.patient_id,
+        a.patient_name,
+        a.service_id,
+        a.service_name,
+        a.room_id,
+        a.appointment_date,
+        a.time_slot,
+        a.slot_start,
+        a.slot_end,
+        a.status,
+        p.hn,
+        p.patient_type,
+        s.location,
+        s.department
+      FROM appointments a
+      LEFT JOIN patients p ON a.patient_id = p.id
+      LEFT JOIN services s ON a.service_id = s.service_id
+      WHERE a.patient_id = $1
+      ORDER BY a.appointment_date ASC, a.slot_start ASC, a.created_at ASC
+      `,
+      [patientId]
+    );
+
+    res.json(result.rows);
+  } catch (error) {
+    console.error("GET /appointments/book/:patientId error:", error);
+    res.status(500).json({
+      message: "Failed to fetch booked appointments",
+      detail: error.message,
+    });
+  }
+});
+
 const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
