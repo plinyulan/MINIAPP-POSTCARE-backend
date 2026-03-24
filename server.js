@@ -87,6 +87,84 @@ app.post("/login", async (req, res) => {
   }
 });
 
+// Get patient profile by id
+app.get("/patients/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        hn,
+        patient_type,
+        full_name,
+        age,
+        gender,
+        blood_group,
+        phone_number,
+        birthday,
+        address,
+        profile_image,
+        doctor_name
+      FROM patients
+      WHERE id = $1
+      `,
+      [id]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Patient not found",
+      });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("get patient profile error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get patient profile by HN
+app.get("/patients/hn/:hn", async (req, res) => {
+  try {
+    const { hn } = req.params;
+
+    const result = await pool.query(
+      `
+      SELECT
+        id,
+        hn,
+        patient_type,
+        full_name,
+        age,
+        gender,
+        blood_group,
+        phone_number,
+        birthday,
+        address,
+        profile_image,
+        doctor_name
+      FROM patients
+      WHERE hn = $1
+      `,
+      [hn]
+    );
+
+    if (result.rows.length === 0) {
+      return res.status(404).json({
+        message: "Patient not found",
+      });
+    }
+
+    res.json(result.rows[0]);
+  } catch (err) {
+    console.error("get patient by hn error:", err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Services endpoint
 app.get("/services", async (req, res) => {
   try {
@@ -226,7 +304,6 @@ app.get("/available-slots", async (req, res) => {
 
       let status = "available";
 
-      // ถ้าถึงเวลาเริ่ม session แล้ว -> กดไม่ได้
       if (now >= sessionStartDateTime) {
         status = "expired";
       } else if (availableCount <= 0) {
@@ -455,5 +532,4 @@ const PORT = process.env.PORT || 8080;
 app.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
 
