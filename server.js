@@ -430,7 +430,6 @@ app.get("/appointments/book/:patientId", async (req, res) => {
         a.slot_end,
         a.status,
         p.hn,
-        p.patient_type,
         s.location,
         s.department
       FROM appointments a
