@@ -3,6 +3,83 @@ const express = require("express");
 const cors = require("cors");
 const pool = require("./database");
 
+// For sending LINE notifications 
+const axios = require("axios");
+/* LINE PUSH */
+async function sendLinePush(userId, message) {
+  try {
+    await axios.post(
+      "https://api.line.me/v2/bot/message/push",
+      {
+        to: userId,
+        messages: [message],
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${process.env.LINE_CHANNEL_ACCESS_TOKEN}`,
+        },
+      }
+    );
+    console.log("LINE sent");
+  } catch (err) {
+    console.error("LINE error:", err.response?.data || err.message);
+  }
+}
+
+/* FLEX UI */
+function buildAppointmentFlex(a) {
+  return {
+    type: "flex",
+    altText: "จองนัดสำเร็จ",
+    contents: {
+      type: "bubble",
+      body: {
+        type: "box",
+        layout: "vertical",
+        spacing: "md",
+        contents: [
+          {
+            type: "text",
+            text: "จองนัดสำเร็จ",
+            weight: "bold",
+            size: "xl",
+          },
+          {
+            type: "text",
+            text: "รายละเอียดการนัด",
+            color: "#888888",
+          },
+          {
+            type: "text",
+            text: a.appointment_date,
+            weight: "bold",
+            size: "xxl",
+          },
+          {
+            type: "text",
+            text: `เวลา ${a.slot_start} - ${a.slot_end}`,
+            color: "#22C55E",
+            weight: "bold",
+          },
+          { type: "separator" },
+          {
+            type: "text",
+            text: `บริการ: ${a.service_name}`,
+            wrap: true,
+          },
+          {
+            type: "text",
+            text: `ห้อง: ${a.room_id}`,
+          },
+        ],
+      },
+    },
+  };
+}
+
+
+
 const app = express();
 app.use(cors());
 app.use(express.json());
@@ -466,6 +543,21 @@ app.post("/appointments/book", async (req, res) => {
         "booked",
       ]
     );
+    // Send message to LINE Notify
+    const appointment = insertResult.rows[0];
+
+    /* SEND LINE */
+    const userResult = await client.query(
+    `SELECT line_user_id FROM patients WHERE id = $1`,
+    [appointment.patient_id]
+    );
+
+const lineUserId = userResult.rows[0]?.line_user_id;
+
+if (lineUserId) {
+  const flex = buildAppointmentFlex(appointment);
+  await sendLinePush(lineUserId, flex);
+}
 
     await client.query("COMMIT");
 
