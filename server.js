@@ -621,23 +621,6 @@ app.get("/appointments/book/:patientId", async (req, res) => {
 });
 
 
-app.post("/webhook", async (req, res) => {
-  try {
-    const events = req.body.events || [];
-
-    for (const event of events) {
-      const userId = event?.source?.userId;
-
-      console.log("🔥 LINE USER ID:", userId);
-
-      // 👇 ใส่ลง DB ตรงนี้เลย (ทดสอบก่อน)
-      if (userId) {
-        await pool.query(
-          "UPDATE patients SET line_user_id = $1 WHERE id = 2",
-          [userId]
-        );
-      }
-    }
 
     res.sendStatus(200);
   } catch (err) {
